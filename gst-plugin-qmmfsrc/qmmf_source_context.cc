@@ -2079,10 +2079,12 @@ gst_qmmf_context_create_video_stream (GstQmmfContext * context, GstPad * pad)
   }
 
   if (vpad->super_buffer_mode &&
-      !((vpad->format == GST_VIDEO_FORMAT_NV12_Q08C ||
-          vpad->format == GST_VIDEO_FORMAT_NV12 ||
-          vpad->format == GST_VIDEO_FORMAT_P010_10LE ||
-          vpad->format == GST_VIDEO_FORMAT_NV12_Q10LE32C) &&
+      !((vpad->format == GST_VIDEO_FORMAT_NV12 ||
+#ifdef ENABLE_UBWC_FORMATS
+          vpad->format == GST_VIDEO_FORMAT_NV12_Q08C ||
+          vpad->format == GST_VIDEO_FORMAT_NV12_Q10LE32C ||
+#endif
+          vpad->format == GST_VIDEO_FORMAT_P010_10LE) &&
           vpad->framerate >= GST_QMMF_CONTEXT_HFR_FPS_THRESHOLD)) {
     GST_ERROR ("Super buffer mode enabled but negotiated caps are not proper!");
     GST_QMMFSRC_VIDEO_PAD_UNLOCK (vpad);
@@ -2094,18 +2096,22 @@ gst_qmmf_context_create_video_stream (GstQmmfContext * context, GstPad * pad)
       format = !vpad->super_buffer_mode ? ::qmmf::recorder::VideoFormat::kNV12 :
           ::qmmf::recorder::VideoFormat::kNV12FLEX;
       break;
+#ifdef ENABLE_UBWC_FORMATS
     case GST_VIDEO_FORMAT_NV12_Q08C:
       format = !vpad->super_buffer_mode ? ::qmmf::recorder::VideoFormat::kNV12UBWC :
           ::qmmf::recorder::VideoFormat::kNV12UBWCFLEX;
       break;
+#endif
     case GST_VIDEO_FORMAT_P010_10LE:
       format = !vpad->super_buffer_mode ? ::qmmf::recorder::VideoFormat::kP010 :
           ::qmmf::recorder::VideoFormat::kP010FLEX;
       break;
+#ifdef ENABLE_UBWC_FORMATS
     case GST_VIDEO_FORMAT_NV12_Q10LE32C:
       format = !vpad->super_buffer_mode ? ::qmmf::recorder::VideoFormat::kTP10UBWC :
           ::qmmf::recorder::VideoFormat::kTP10UBWCFLEX;
       break;
+#endif
     case GST_VIDEO_FORMAT_NV16:
       format = ::qmmf::recorder::VideoFormat::kNV16;
       break;
@@ -2156,8 +2162,11 @@ gst_qmmf_context_create_video_stream (GstQmmfContext * context, GstPad * pad)
   // Full range colorspace only support P010 or TP10
   if ((colorimetry == ::qmmf::recorder::Colorimetry::kBT2100HLGFULL ||
        colorimetry == ::qmmf::recorder::Colorimetry::kBT2100PQFULL) &&
-      !(vpad->format == GST_VIDEO_FORMAT_P010_10LE ||
-      vpad->format == GST_VIDEO_FORMAT_NV12_Q10LE32C)) {
+      !(vpad->format == GST_VIDEO_FORMAT_P010_10LE
+#ifdef ENABLE_UBWC_FORMATS
+      || vpad->format == GST_VIDEO_FORMAT_NV12_Q10LE32C
+#endif
+      )) {
     GST_ERROR ("Video %s format is not 10bit, unsupported by BT2100HLG or PQ!",
         gst_qmmf_video_format_to_string (vpad->format));
     GST_QMMFSRC_VIDEO_PAD_UNLOCK (vpad);
@@ -2387,8 +2396,11 @@ gst_qmmf_context_create_image_stream (GstQmmfContext * context, GstPad * pad)
     // Full range colorspace only support P010 or TP10
     if ((colorimetry == ::qmmf::recorder::Colorimetry::kBT2100HLGFULL ||
          colorimetry == ::qmmf::recorder::Colorimetry::kBT2100PQFULL) &&
-        !(ipad->format == GST_VIDEO_FORMAT_P010_10LE ||
-        ipad->format == GST_VIDEO_FORMAT_NV12_Q10LE32C)) {
+        !(ipad->format == GST_VIDEO_FORMAT_P010_10LE
+#ifdef ENABLE_UBWC_FORMATS
+        || ipad->format == GST_VIDEO_FORMAT_NV12_Q10LE32C
+#endif
+	)) {
       GST_ERROR ("Image %s format is not 10bit, unsupported by BT2100HLG or PQ!",
           gst_qmmf_video_format_to_string (ipad->format));
       GST_QMMFSRC_IMAGE_PAD_UNLOCK (ipad);
@@ -2404,15 +2416,19 @@ gst_qmmf_context_create_image_stream (GstQmmfContext * context, GstPad * pad)
       case GST_VIDEO_FORMAT_NV21:
         imgparam.format = ::qmmf::recorder::ImageFormat::kNV21;
         break;
+#ifdef ENABLE_UBWC_FORMATS
       case GST_VIDEO_FORMAT_NV12_Q08C:
         imgparam.format = ::qmmf::recorder::ImageFormat::kNV12UBWC;
         break;
+#endif
       case GST_VIDEO_FORMAT_P010_10LE:
         imgparam.format = ::qmmf::recorder::ImageFormat::kP010;
         break;
+#ifdef ENABLE_UBWC_FORMATS
       case GST_VIDEO_FORMAT_NV12_Q10LE32C:
         imgparam.format = ::qmmf::recorder::ImageFormat::kTP10UBWC;
         break;
+#endif
       case GST_BAYER_FORMAT_BGGR:
       case GST_BAYER_FORMAT_RGGB:
       case GST_BAYER_FORMAT_GBRG:
