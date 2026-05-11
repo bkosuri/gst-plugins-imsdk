@@ -12,6 +12,12 @@ set(GST_PLUGINS_QTI_OSS_INSTALL_CONFIG "${CMAKE_INSTALL_SYSCONFDIR}/configs")
 set(GST_PLUGINS_QTI_OSS_INSTALL_MEDIA "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATAROOTDIR}/qdemo")
 
 option(ENABLE_GST_IMSDK_PLUGINS "Enable IMSDK Plugins" OFF)
+option(ENABLE_UBWC_FORMATS "Enable UBWC formats (NV12_Q08C, NV12_10LE32)" ON)
+
+# Define ENABLE_UBWC_FORMATS as a preprocessor macro for all targets
+if(ENABLE_UBWC_FORMATS)
+  add_definitions(-DENABLE_UBWC_FORMATS)
+endif()
 
 option(ENABLE_GST_PLUGIN_BASE "Enable gst-plugin-base libraries" ${ENABLE_GST_IMSDK_PLUGINS})
 option(ENABLE_GST_PLUGIN_CAMERA_BASE "Enable gst-plugin-base camera libraries" ${ENABLE_GST_IMSDK_PLUGINS})

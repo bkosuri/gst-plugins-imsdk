@@ -45,7 +45,11 @@ G_DEFINE_TYPE_WITH_CODE (GstCameraImageReproc, gst_camera_image_reproc,
 #define DEFAULT_PROP_QUEUE_SIZE     10
 
 // Pad Template
+#ifdef ENABLE_UBWC_FORMATS
 #define GST_CAPS_FORMATS "{ NV12, NV12_Q08C, P010_10LE }"
+#else
+#define GST_CAPS_FORMATS "{ NV12, P010_10LE }"
+#endif
 
 enum
 {

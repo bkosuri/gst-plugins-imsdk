@@ -47,7 +47,11 @@ enum
   PROP_MIN_BUFFERS,
 };
 
+#ifdef ENABLE_UBWC_FORMATS
 #define GST_VIDEO_FORMATS "{ NV12, NV12_Q08C }"
+#else
+#define GST_VIDEO_FORMATS "{ NV12 }"
+#endif
 
 #define GST_ML_VIDEO_DETECTION_TEXT_FORMATS \
     "{ utf8 }"

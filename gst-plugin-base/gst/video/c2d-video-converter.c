@@ -172,8 +172,10 @@ gst_video_format_to_c2d_format (GstVideoFormat format)
   switch (format) {
     case GST_VIDEO_FORMAT_NV12:
       return C2D_COLOR_FORMAT_420_Y_UV;
+#ifdef ENABLE_UBWC_FORMATS
     case GST_VIDEO_FORMAT_NV12_Q08C:
       return C2D_COLOR_FORMAT_420_Y_UV | C2D_FORMAT_UBWC_COMPRESSED;
+#endif
     case GST_VIDEO_FORMAT_NV21:
       return C2D_COLOR_FORMAT_420_Y_VU;
     case GST_VIDEO_FORMAT_I420:
@@ -212,8 +214,10 @@ gst_video_format_to_c2d_format (GstVideoFormat format)
       return C2D_COLOR_FORMAT_444_Y_U_V;
     case GST_VIDEO_FORMAT_P010_10LE:
       return C2D_COLOR_FORMAT_420_P010;
+#ifdef ENABLE_UBWC_FORMATS
     case GST_VIDEO_FORMAT_NV12_10LE32:
       return C2D_COLOR_FORMAT_420_TP10;
+#endif
     case GST_VIDEO_FORMAT_RGBA:
       return C2D_COLOR_FORMAT_8888_ARGB | C2D_FORMAT_SWAP_RB;
     case GST_VIDEO_FORMAT_BGRA:

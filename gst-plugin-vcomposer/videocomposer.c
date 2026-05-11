@@ -76,8 +76,13 @@ G_DEFINE_TYPE_WITH_CODE (GstVideoComposer, gst_video_composer,
 #undef GST_VIDEO_FPS_RANGE
 #define GST_VIDEO_FPS_RANGE "(fraction) [ 0, 255 ]"
 
+#ifdef ENABLE_UBWC_FORMATS
 #define GST_VIDEO_FORMATS \
   "{ NV12, NV21, UYVY, YUY2, P010_10LE, RGBA, BGRA, ARGB, ABGR, RGBx, BGRx, xRGB, xBGR, RGB, BGR, GRAY8, NV12_Q08C }"
+#else
+#define GST_VIDEO_FORMATS \
+  "{ NV12, NV21, UYVY, YUY2, P010_10LE, RGBA, BGRA, ARGB, ABGR, RGBx, BGRx, xRGB, xBGR, RGB, BGR, GRAY8 }"
+#endif
 
 enum
 {

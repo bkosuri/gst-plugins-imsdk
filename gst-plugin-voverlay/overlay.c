@@ -29,8 +29,13 @@ GST_DEBUG_CATEGORY (gst_overlay_debug);
 #define gst_overlay_parent_class parent_class
 G_DEFINE_TYPE (GstVOverlay, gst_overlay, GST_TYPE_BASE_TRANSFORM);
 
+#ifdef ENABLE_UBWC_FORMATS
 #define GST_OVERLAY_VIDEO_FORMATS \
   "{ NV12, NV21, YUY2, RGBA, BGRA, ARGB, ABGR, RGBx, BGRx, xRGB, xBGR, RGB, BGR, NV12_Q08C }"
+#else
+#define GST_OVERLAY_VIDEO_FORMATS \
+  "{ NV12, NV21, YUY2, RGBA, BGRA, ARGB, ABGR, RGBx, BGRx, xRGB, xBGR, RGB, BGR }"
+#endif
 
 #define DEFAULT_MIN_BUFFERS         1
 #define DEFAULT_MAX_BUFFERS         50

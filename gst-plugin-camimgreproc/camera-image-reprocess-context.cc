@@ -280,7 +280,9 @@ gst_parse_process_mode (GstVideoFormat in_format, GstVideoFormat out_format)
 
   switch (in_format) {
     case GST_VIDEO_FORMAT_NV12:
+#ifdef ENABLE_UBWC_FORMATS
     case GST_VIDEO_FORMAT_NV12_Q08C:
+#endif
     case GST_VIDEO_FORMAT_P010_10LE:
       in_flag = PROCESS_MODE_FLAG_YUV;
       break;
@@ -295,7 +297,9 @@ gst_parse_process_mode (GstVideoFormat in_format, GstVideoFormat out_format)
 
   switch (out_format) {
     case GST_VIDEO_FORMAT_NV12:
+#ifdef ENABLE_UBWC_FORMATS
     case GST_VIDEO_FORMAT_NV12_Q08C:
+#endif
     case GST_VIDEO_FORMAT_P010_10LE:
       out_flag = PROCESS_MODE_FLAG_YUV;
       break;
@@ -328,9 +332,11 @@ gst_convert_to_video_format (GstVideoFormat videoformat)
     case GST_VIDEO_FORMAT_NV12:
       format = ::qmmf::recorder::VideoFormat::kNV12;
       break;
+#ifdef ENABLE_UBWC_FORMATS
     case GST_VIDEO_FORMAT_NV12_Q08C:
       format = ::qmmf::recorder::VideoFormat::kNV12UBWC;
       break;
+#endif
     case GST_VIDEO_FORMAT_P010_10LE:
       format = ::qmmf::recorder::VideoFormat::kP010;
       break;

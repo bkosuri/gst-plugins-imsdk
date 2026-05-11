@@ -26,7 +26,11 @@ GST_DEBUG_CATEGORY_STATIC (camera_reprocess_debug);
 #define DEFAULT_PROP_EIS                   GST_CAMERA_REPROCESS_EIS_NONE
 
 // Pad Template
+#ifdef ENABLE_UBWC_FORMATS
 #define GST_CAPS_FORMATS "{ NV12, NV12_Q08C, P010_10LE }"
+#else
+#define GST_CAPS_FORMATS "{ NV12, P010_10LE }"
+#endif
 
 // GType
 #define GST_TYPE_CAMERA_REPROCESS_EIS (gst_camera_reprocess_eis_get_type())
@@ -372,9 +376,11 @@ gst_camera_reprocess_create_buffer_pool (GstCameraReprocess *camreproc,
   gst_buffer_pool_config_set_allocator (config, allocator, NULL);
   gst_buffer_pool_config_add_option (config, GST_BUFFER_POOL_OPTION_VIDEO_META);
 
+#ifdef ENABLE_UBWC_FORMATS
   if (GST_VIDEO_INFO_FORMAT (&info) == GST_VIDEO_FORMAT_NV12_Q08C ||
       GST_VIDEO_INFO_FORMAT (&info) == GST_VIDEO_FORMAT_NV12_Q10LE32C)
     GST_DEBUG_OBJECT (camreproc, "Buffer pool uses UBWC mode.");
+#endif
 
   if (!gst_buffer_pool_set_config (pool, config)) {
     GST_ERROR_OBJECT (camreproc, "Failed to set pool configuration!");
