@@ -33,6 +33,7 @@
  */
 
 #include "gstimagepool.h"
+#include "video-utils.h"
 
 #include <dlfcn.h>
 #include <fcntl.h>
@@ -73,6 +74,8 @@ GST_DEBUG_CATEGORY_STATIC (gst_image_pool_debug);
 struct _GstImageBufferPoolPrivate
 {
   GstVideoInfo        info;
+  GstVideoInfoDmaDrm  drm_info;
+
   GstVideoAlignment   align;
 
   gboolean            addmeta;
@@ -108,14 +111,22 @@ G_DEFINE_TYPE_WITH_PRIVATE (GstImageBufferPool, gst_image_buffer_pool,
     GST_TYPE_BUFFER_POOL);
 
 static gint
-gst_video_format_to_gbm_format (GstVideoFormat format)
+gst_video_format_to_gbm_format (GstVideoInfoDmaDrm* drm_info)
 {
+  GstVideoFormat format = GST_VIDEO_INFO_FORMAT (&drm_info->vinfo);
   switch (format) {
 #ifdef HAVE_GBM_PRIV_H
     case GST_VIDEO_FORMAT_NV12:
       return GBM_FORMAT_NV12;
-    case GST_VIDEO_FORMAT_NV12_Q08C:
-      return GBM_FORMAT_YCbCr_420_SP_VENUS_UBWC;
+    case GST_VIDEO_FORMAT_DMA_DRM:
+      if (drm_info->fourcc == DRM_FORMAT_NV12 &&
+          drm_info->drm_modifier == DRM_FORMAT_MOD_QCOM_COMPRESSED)
+        return GBM_FORMAT_YCbCr_420_SP_VENUS_UBWC;
+      else if (drm_info->fourcc == DRM_FORMAT_P010 &&
+          drm_info->drm_modifier == DRM_FORMAT_MOD_QCOM_COMPRESSED)
+        return GBM_FORMAT_YCbCr_420_TP10_UBWC;
+      else
+        return -1;
     case GST_VIDEO_FORMAT_NV21:
       return GBM_FORMAT_NV21_ZSL;
     case GST_VIDEO_FORMAT_YUY2:
@@ -124,8 +135,6 @@ gst_video_format_to_gbm_format (GstVideoFormat format)
       return GBM_FORMAT_UYVY;
     case GST_VIDEO_FORMAT_P010_10LE:
       return GBM_FORMAT_YCbCr_420_P010_VENUS;
-    case GST_VIDEO_FORMAT_NV12_Q10LE32C:
-      return GBM_FORMAT_YCbCr_420_TP10_UBWC;
     case GST_VIDEO_FORMAT_BGRx:
       return GBM_FORMAT_BGRX8888;
     case GST_VIDEO_FORMAT_BGRA:
@@ -275,17 +284,20 @@ gbm_device_alloc (GstImageBufferPool * vpool)
   struct gbm_bo *bo = NULL;
   gint fd = -1, format = 0, usage = 0;
 
-  format = gst_video_format_to_gbm_format (GST_VIDEO_INFO_FORMAT (&priv->info));
+  format = gst_video_format_to_gbm_format (&priv->drm_info);
   g_return_val_if_fail (format >= 0, NULL);
 
 #ifdef HAVE_GBM_PRIV_H
   if (GST_VIDEO_INFO_FORMAT (&priv->info) == GST_VIDEO_FORMAT_P010_10LE) {
     usage |= GBM_BO_USAGE_10BIT_QTI;
-  } else if (GST_VIDEO_INFO_FORMAT (&priv->info) == GST_VIDEO_FORMAT_NV12_Q08C) {
-    usage |= GBM_BO_USAGE_UBWC_ALIGNED_QTI;
-  } else if (GST_VIDEO_INFO_FORMAT (&priv->info) == GST_VIDEO_FORMAT_NV12_Q10LE32C) {
-    usage |= GBM_BO_USAGE_10BIT_TP_QTI;
-    usage |= GBM_BO_USAGE_UBWC_ALIGNED_QTI;
+  } else if (GST_VIDEO_INFO_FORMAT (&priv->info) == GST_VIDEO_FORMAT_DMA_DRM &&
+        priv->drm_info.drm_modifier == DRM_FORMAT_MOD_QCOM_COMPRESSED) {
+    if (priv->drm_info.drm_fourcc == DRM_FORMAT_NV12)
+      usage |= GBM_BO_USAGE_UBWC_ALIGNED_QTI;
+    else {
+      usage |= GBM_BO_USAGE_10BIT_TP_QTI;
+      usage |= GBM_BO_USAGE_UBWC_ALIGNED_QTI;
+    }
   }
 #endif // HAVE_GBM_PRIV_H
 
@@ -346,6 +358,7 @@ gst_image_buffer_pool_set_config (GstBufferPool * pool, GstStructure * config)
   GstCaps *caps = NULL;
   GstAllocator *allocator = NULL;
   GstVideoInfo info = {0,};
+  GstVideoInfoDmaDrm drm_info = {0,};
   GstAllocationParams params = {0,};
   guint size = 0, minbuffers = 0, maxbuffers = 0;
   gboolean success = FALSE, keepmapped = FALSE, need_alignment = FALSE;
@@ -361,12 +374,34 @@ gst_image_buffer_pool_set_config (GstBufferPool * pool, GstStructure * config)
     return FALSE;
   }
 
-  // Now parse the caps from the configuration.
-  if (!gst_video_info_from_caps (&info, caps)) {
-    GST_ERROR_OBJECT (vpool, "Failed getting geometry from caps %"
-        GST_PTR_FORMAT, caps);
-    return FALSE;
-  } else if (size < info.size) {
+  if (gst_video_is_dma_drm_caps (caps)) {
+    if (!gst_video_info_dma_drm_from_caps (&drm_info, caps)) {
+      GST_ERROR_OBJECT (vpool, "Failed getting drm_info from caps %"
+          GST_PTR_FORMAT, caps);
+      return FALSE;
+    }
+    if (!gst_video_info_dma_drm_to_video_info (&drm_info, &info)) {
+      GST_ERROR_OBJECT (vpool, "Failed getting vinfo from drm_info");
+      return FALSE;
+    }
+
+    if (!gst_video_info_update_with_ubwc_info(&info)) {
+      GST_ERROR_OBJECT (vpool, "Failed to update ubwc info");
+      return FALSE;
+    }
+  } else {
+    if (!gst_video_info_from_caps (&info, caps)) {
+      GST_ERROR_OBJECT (vpool, "Failed getting geometry from caps %"
+          GST_PTR_FORMAT, caps);
+      return FALSE;
+    }
+
+    if (!gst_video_info_dma_drm_from_video_info (&drm_info,
+            &info, DRM_FORMAT_MOD_LINEAR))
+      gst_video_info_dma_drm_init (&drm_info);
+  }
+
+  if (size < info.size) {
     GST_ERROR_OBJECT (pool, "Provided size is to small for the caps: %u < %"
         G_GSIZE_FORMAT, size, info.size);
     return FALSE;
@@ -415,6 +450,13 @@ gst_image_buffer_pool_set_config (GstBufferPool * pool, GstStructure * config)
     }
 
     gst_buffer_pool_config_set_video_alignment (config, &priv->align);
+
+    if (gst_video_is_dma_drm_caps (caps)) {
+      if (!gst_video_info_update_with_ubwc_info(&info)) {
+        GST_ERROR_OBJECT (vpool, "Failed to update ubwc info");
+        return FALSE;
+      }
+    }
   }
 
   priv->params = params;
@@ -424,6 +466,7 @@ gst_image_buffer_pool_set_config (GstBufferPool * pool, GstStructure * config)
     info.size = MAX (size, info.size);
 
   priv->info = info;
+  priv->drm_info = drm_info;
 
   // Allocate GBM memory when the allocator is FD backed but not QTI allocator.
   if (!GST_IS_QTI_ALLOCATOR (allocator) && !gbm_device_open (vpool)) {
@@ -441,16 +484,19 @@ gst_image_buffer_pool_set_config (GstBufferPool * pool, GstStructure * config)
 
     bufinfo.width = GST_VIDEO_INFO_WIDTH (&priv->info);
     bufinfo.height = GST_VIDEO_INFO_HEIGHT (&priv->info);
-    bufinfo.format = gst_video_format_to_gbm_format (
-        GST_VIDEO_INFO_FORMAT (&priv->info));
+    bufinfo.format = gst_video_format_to_gbm_format (&priv->drm_info);
 
     if (GST_VIDEO_INFO_FORMAT (&priv->info) == GST_VIDEO_FORMAT_P010_10LE) {
       usage |= GBM_BO_USAGE_10BIT_QTI;
-    } else if (GST_VIDEO_INFO_FORMAT (&priv->info) == GST_VIDEO_FORMAT_NV12_Q10LE32C) {
-      usage |= GBM_BO_USAGE_10BIT_TP_QTI;
-      usage |= GBM_BO_USAGE_UBWC_ALIGNED_QTI;
-    } else if (GST_VIDEO_INFO_FORMAT (&priv->info) == GST_VIDEO_FORMAT_NV12_Q08C) {
-      usage |= GBM_BO_USAGE_UBWC_ALIGNED_QTI;
+    } else if (GST_VIDEO_INFO_FORMAT (&priv->info) == GST_VIDEO_FORMAT_DMA_DRM) {
+      if (priv->drm_info.drm_modifier == DRM_FORMAT_MOD_QCOM_COMPRESSED) {
+        if (priv->drm_info.drm_fourcc == DRM_FORMAT_P010) {
+          usage |= GBM_BO_USAGE_10BIT_TP_QTI;
+          usage |= GBM_BO_USAGE_UBWC_ALIGNED_QTI;
+        } else {
+          usage |= GBM_BO_USAGE_UBWC_ALIGNED_QTI;
+        }
+      }
     }
 
     priv->gbm_perform (GBM_PERFORM_GET_BUFFER_STRIDE_SCANLINE_SIZE, &bufinfo,

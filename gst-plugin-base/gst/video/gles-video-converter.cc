@@ -86,7 +86,7 @@ gst_video_format_to_ib2c_format (GstVideoFormat format, const guint64 datatype)
   switch (format) {
     case GST_VIDEO_FORMAT_NV12:
       return ::ib2c::ColorFormat::kNV12;
-    case GST_VIDEO_FORMAT_NV12_Q08C:
+    case GST_VIDEO_FORMAT_DMA_DRM:
       return ::ib2c::ColorFormat::kNV12 | ::ib2c::ColorMode::kUBWC;
     case GST_VIDEO_FORMAT_P010_10LE:
       return ::ib2c::ColorFormat::kP010;

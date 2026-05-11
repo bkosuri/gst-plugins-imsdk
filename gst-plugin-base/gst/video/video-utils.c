@@ -332,3 +332,46 @@ gst_video_info_modify_with_meta (GstVideoInfo * info, const GstVideoMeta * meta)
 
   return TRUE;
 }
+
+gboolean
+gst_video_info_update_with_ubwc_info (GstVideoInfo * info)
+{
+  GST_DEBUG("updating info with ubwc");
+  gsize width, height;
+
+  width = (gsize) info->width;
+  height = (gsize) (info->height);
+
+  gint y_plane_stride = 0, y_meta_stride = 0, y_meta_scanline = 0;
+  gint uv_plane_stride = 0, uv_meta_stride = 0, uv_meta_scanline = 0;
+  gint y_plane_scanline = 0, y_plane_size = 0, y_meta_size = 0;
+  gint uv_plane_scanline = 0, uv_plane_size = 0, uv_meta_size = 0;
+
+  y_plane_stride = GST_ROUND_UP_128 (width);
+  y_plane_scanline = GST_ROUND_UP_32 (height);
+  uv_plane_stride = GST_ROUND_UP_128 (width);
+  uv_plane_scanline = GST_ROUND_UP_32 (GST_ROUND_UP_2 (height) / 2);
+
+  y_meta_stride = GST_ROUND_UP_64 (GST_ROUND_UP_32 (width) / 32);
+  y_meta_scanline = GST_ROUND_UP_16 (GST_ROUND_UP_8 (height) / 8);
+  uv_meta_stride = GST_ROUND_UP_64 (
+      GST_ROUND_UP_16 (GST_ROUND_UP_2 (width) / 2) / 16);
+  uv_meta_scanline = GST_ROUND_UP_16 (
+       GST_ROUND_UP_8 (GST_ROUND_UP_2 (height) / 2) / 8);
+
+   y_plane_size = GST_ROUND_UP_N (y_plane_stride * y_plane_scanline, 4096);
+  uv_plane_size = GST_ROUND_UP_N (uv_plane_stride * uv_plane_scanline, 4096);
+
+  y_meta_size = GST_ROUND_UP_N (y_meta_stride * y_meta_scanline, 4096);
+  uv_meta_size = GST_ROUND_UP_N (uv_meta_stride * uv_meta_scanline, 4096);
+
+  info->stride[0] = y_plane_stride;
+  info->stride[1] = uv_plane_stride;
+  info->offset[0] = 0;
+  info->offset[1] = y_plane_size + y_meta_size;
+  info->size = info->offset[1] + uv_plane_size + uv_meta_size;
+  GST_DEBUG("offset1 %ld", info->offset[1]);
+  GST_DEBUG("setting size %ld", info->size);
+
+  return TRUE;
+}

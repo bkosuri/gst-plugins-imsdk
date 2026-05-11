@@ -149,6 +149,9 @@ gst_video_point_affine_transform (GstVideoPoint * point, gdouble matrix[3][3]);
 GST_VIDEO_API gboolean
 gst_video_info_modify_with_meta (GstVideoInfo * info, const GstVideoMeta * meta);
 
+GST_VIDEO_API gboolean
+gst_video_info_update_with_ubwc_info (GstVideoInfo * info);
+
 G_END_DECLS
 
 #endif // __GST_QTI_VIDEO_UTILS_H__

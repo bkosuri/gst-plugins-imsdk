@@ -63,6 +63,8 @@ G_BEGIN_DECLS
  */
 #define GST_IMAGE_BUFFER_POOL_OPTION_KEEP_MAPPED "GstBufferPoolOptionKeepMapped"
 
+#define DRM_FORMAT_MOD_LINEAR  0ULL
+
 typedef struct _GstImageBufferPool GstImageBufferPool;
 typedef struct _GstImageBufferPoolClass GstImageBufferPoolClass;
 typedef struct _GstImageBufferPoolPrivate GstImageBufferPoolPrivate;
